@@ -74,6 +74,7 @@ beta = 0.00005
 meta_verte = attach_layout(g = meta_verte$metaweb,
                          metanetwork = meta_verte,beta = beta)
 
+# FIGURE S2.2
 #representation using ggmetanet and diffplot
 #ggmetanet (with custom parameters)
 ggnet.custom = metanetwork::ggnet.default
@@ -95,28 +96,6 @@ png('metaweb_marc_1.png',height=600,width=700)
 print(p)
 dev.off()
 
-#diffplot (with custom parameters)
-ggnet.custom$label = F
-ggnet.custom$edge.alpha = 0.2
-ggnet.custom$alpha = 0.3
-ggnet.custom$max_size = 3
-ggnet.custom$arrow.gap = 0.003
-ggnet.custom$alpha_diff = 1
-ggnet.custom$edge.alpha_diff = 0.8
-
-pDif = diff_plot(g1 = meta_verte$re1,g2 = meta_verte$re3,metanetwork = meta_verte,
-          layout_metaweb = T,beta = beta,
-          ggnet.config = ggnet.custom,
-          flip_coords = T,
-          alpha_per_group = list(resolution = "SBMgroup",
-                                 groups = diets,
-                                 alpha_focal = 0.3,
-                                 alpha_hidden = 0.9))
-
-png('diffplot_marc_1.png',height=600,width=700)
-print(pDif)
-dev.off()
-
 # at a SBM group level
 ##################
 ggnet.custom = ggnet.default
@@ -135,7 +114,7 @@ beta = 0.002
 meta_verte = attach_layout(g = meta_verte$metaweb_SBMgroup,
                   metanetwork = meta_verte,beta = beta)
 
-#ggmetanet
+### FIGURE 2
 pGr = ggmetanet(g = meta_verte$metaweb_SBMgroup,
                 beta = beta,metanetwork = meta_verte,
           ggnet.config = ggnet.custom,
@@ -156,7 +135,7 @@ ggnet.custom$edge.alpha_diff=0.7
 ggnet.custom$legend.position="right"
 ggnet.custom$arrow.gap = 0.025
 
-#diffplot
+###FIGURE 4
 pDifGr = diff_plot(g1 = meta_verte$inhigh_SBMgroup,
           g2 = meta_verte$inlow_SBMgroup,
           beta = beta,
@@ -173,6 +152,7 @@ png('diffplot_marc_group.png',height=800,width=1200)
 print(pDifGr)
 dev.off()
 
+### TABLE S2.3
 groupis=data.frame(TL=vertex_attr(meta_verte$metaweb_SBMgroup)$TL,
            ab=vertex_attr(meta_verte$metaweb_SBMgroup)$ab,
            gr=vertex_attr(meta_verte$metaweb_SBMgroup)$name)
