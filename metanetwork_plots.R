@@ -3,7 +3,7 @@ rm(list=ls())
 #using metanetwork package
 
 # setwd("~/Bureau/article_chris_b/")
-mainDir ="C:/Users/user/pCloud local/boulot/data/GBIF IUCN tetrapods/resultsRepro" 
+mainDir ="~/Desktop/collab_LECA/article_chris_b/github/" 
 setwd(mainDir)
 
 ### metanetwork Installation
@@ -21,9 +21,13 @@ library(RColorBrewer)
 library(Matrix.utils)
 library(raster)
 library(sp)
+library(ggraph)
+library(tidyverse)
+library(scatterpie)
+library(viridisLite)
 
 # loading data
-load("preprocessed_data")
+load("data/preprocessed_data")
 
 #building the igraph metaweb
 metaweb = graph_from_adjacency_matrix(t(metaweb_Adj), mode = "directed")
@@ -38,14 +42,14 @@ abTable_loc = t(sapply(by(as.matrix(cellsVsSpecies_l),rownames(cellsVsSpecies_l)
 rownames(abTable_loc) = paste0(substr(covariate,1,2),rownames(abTable_loc))
 
 #building trophicTable !!CAUTION NA in group at line  513!!!!!
-spTab_loc = spTab[,c("name","SBMgroup")]
+spTab_loc = spTab[,c("name","SBMgroup","Class")]
 rownames(spTab_loc) = spTab_loc$name
-colnames(spTab_loc) = c("species","SBMgroup")
+colnames(spTab_loc) = c("species","SBMgroup","Class")
 spTab_loc[513,"SBMgroup"] = 16 #assigning NA species to arbitrary group
 
 #adding diets to trophicTable
 diets = V(metaweb)$name[ which(!(V(metaweb)$name %in% rownames(spTab_loc)))]
-spTab_loc = rbind(spTab_loc,cbind(species = diets,SBMgroup = diets))
+spTab_loc = rbind(spTab_loc,cbind(species = diets,SBMgroup = diets,Class = "Basal resources"))
 rownames(spTab_loc) = spTab_loc$species
 #adding diets to abTable (uniform abundance, equals to )
 value_diets = min(abTable_loc[which(abTable_loc>0)])
@@ -61,18 +65,21 @@ meta_verte = build_metanet(metaweb = metaweb,abTable = abTable_loc,
 meta_verte = append_agg_nets(meta_verte)
 meta_verte = compute_TL(meta_verte)
 
-print_metanet(meta_verte)
+metanetwork::print(meta_verte)
 
 #METANETWORK ANALYSIS#
 ######################
 
+#load saved meta_verte object (with layout)
+load("foodwebs_vs_land_use/data/meta_verte.Rdata")
 #at a species level
 ##################
 
 #attaching layout
 beta = 0.00005
-meta_verte = attach_layout(g = meta_verte$metaweb,
-                         metanetwork = meta_verte,beta = beta)
+# meta_verte = attach_layout(g = meta_verte$metaweb,
+#                          metanetwork = meta_verte,beta = beta)
+# save(meta_verte,file="foodwebs_vs_land_use/data/meta_verte.Rdata")
 
 # FIGURE S2.2
 #representation using ggmetanet and diffplot
@@ -103,16 +110,17 @@ ggnet.custom$label = T
 ggnet.custom$edge.alpha = 0.5
 ggnet.custom$max_size = 6
 
-ggnet.custom$label.size=7
-ggnet.custom$max_size=17
-ggnet.custom$edge.size=1
+ggnet.custom$label.size = 7
+ggnet.custom$max_size = 17
+ggnet.custom$edge.size = 1
 ggnet.custom$edge.alpha = 0.5
-ggnet.custom$legend.position="right"
+ggnet.custom$legend.position = "right"
 ggnet.custom$arrow.gap = 0.025
 
 beta = 0.002
-meta_verte = attach_layout(g = meta_verte$metaweb_SBMgroup,
-                  metanetwork = meta_verte,beta = beta)
+# meta_verte = attach_layout(g = meta_verte$metaweb_SBMgroup,
+#                   metanetwork = meta_verte,beta = beta)
+# save(meta_verte,file = "foodwebs_vs_land_use/data/meta_verte.Rdata")
 
 ### FIGURE 2
 pGr = ggmetanet(g = meta_verte$metaweb_SBMgroup,
@@ -152,8 +160,54 @@ png('diffplot_marc_group.png',height=800,width=1200)
 print(pDifGr)
 dev.off()
 
+## FIGURE with Piecharts and ggraph
+#(i) building pie chart table
+pieChart =
+  meta_verte$trophicTable %>% group_by(SBMgroup, Class) %>%
+  summarize(nsp = length(unique(species))) %>%
+  pivot_wider(names_from = Class, values_from = "nsp") %>%
+  ungroup()
+
+pieChart[is.na(pieChart)] = 0
+pieChart = cbind(pieChart,x= V(meta_verte$metaweb_SBMgroup)$layout_beta0.002,
+                 y = V(meta_verte$metaweb_SBMgroup)$TL,
+                 nsp = rowSums(pieChart[2:ncol(pieChart)]))
+
+pieChart$radius = as.vector(scale(log(pieChart$nsp)+1, center=F)*5)
+pieChart$radius[c(17,25,29)] = 0.01
+options(ggplot2.continuous.colour="viridis")
+
+#(ii) representing the network using scatterpie and ggraph
+g = meta_verte$metaweb_SBMgroup
+#thresholding on edge
+g = delete_edges(g,which(E(g)$weight<0.5))
+#tuning parameters
+K = 15
+R = 0.2
+
+#for scatterpie size legend
+seq_pie_size = seq(min(R*pieChart$radius),max(R*pieChart$radius),length = 5)
+label_sizes = sapply(seq_pie_size,function(x) min(pieChart$nsp[pieChart$radius>=x/R]))
+names(label_sizes) = seq_pie_size
+
+#the plot!
+p_pie_graph = ggraph(g, "manual", x = V(g)$layout_beta0.002, y = K*V(g)$TL) +
+    geom_edge_link(aes(alpha = weight),arrow = arrow(length = unit(1, 'mm')),
+                   end_cap = circle(5, 'mm'),width = 0.15) +
+  geom_scatterpie(data = pieChart,
+                  aes(x = x,y = K*y,group= SBMgroup, r = R*radius),
+                  color = "black", alpha = 0.8,
+                  cols = c("Aves", "Mammalia", "Reptilia",
+                           "Amphibia", "Basal resources"))+
+  scale_fill_manual("Class", values = viridis(5))+
+  scale_size_continuous(range = c(0, 0.5)) +
+  theme_graph() + 
+  geom_scatterpie_legend(seq_pie_size,x = -15, y = 0, labeller = function(x) label_sizes[as.character(x)]) 
+
+p_pie_graph
+
 ### TABLE S2.3
-groupis=data.frame(TL=vertex_attr(meta_verte$metaweb_SBMgroup)$TL,
+groupis = data.frame(TL=vertex_attr(meta_verte$metaweb_SBMgroup)$TL,
            ab=vertex_attr(meta_verte$metaweb_SBMgroup)$ab,
            gr=vertex_attr(meta_verte$metaweb_SBMgroup)$name)
 groupis = groupis[nchar(as.character(groupis$gr))<=2,]
