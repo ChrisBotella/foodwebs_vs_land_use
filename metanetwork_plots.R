@@ -59,19 +59,21 @@ colnames(df) = diets
 rownames(df) = rownames(abTable_loc)
 abTable_loc = cbind(abTable_loc,df)
 
-# build metanetwork
-meta_verte = build_metanet(metaweb = metaweb,abTable = abTable_loc,
-                             trophicTable = spTab_loc)
-meta_verte = append_agg_nets(meta_verte)
-meta_verte = compute_TL(meta_verte)
+#load saved meta_verte object (with layout)
+load("foodwebs_vs_land_use/data/meta_verte.Rdata")
 
-metanetwork::print(meta_verte)
+# # build metanetwork
+# meta_verte = build_metanet(metaweb = metaweb,abTable = abTable_loc,
+#                              trophicTable = spTab_loc)
+# meta_verte = append_agg_nets(meta_verte)
+# meta_verte = compute_TL(meta_verte)
+# 
+# metanetwork::print(meta_verte)
 
 #METANETWORK ANALYSIS#
 ######################
 
-#load saved meta_verte object (with layout)
-load("foodwebs_vs_land_use/data/meta_verte.Rdata")
+
 #at a species level
 ##################
 
@@ -84,38 +86,36 @@ beta = 0.00005
 # FIGURE S2.2
 #representation using ggmetanet and diffplot
 #ggmetanet (with custom parameters)
-ggnet.custom = metanetwork::ggnet.default
-ggnet.custom$label = F
-ggnet.custom$edge.alpha = 0.01
-ggnet.custom$max_size = 3
-ggnet.custom$arrow.gap = 0.003
-ggnet.custom$alpha_diff = 0.2
-ggnet.custom$edge.alpha_diff = 0.1
-p = ggmetanet(g = meta_verte$metaweb,beta = beta,metanetwork = meta_verte,
-          ggnet.config = ggnet.custom,legend = "SBMgroup",
+ggnet.custom1 = metanetwork::ggnet.default
+ggnet.custom1$label = F
+ggnet.custom1$edge.alpha = 0.01
+ggnet.custom1$max_size = 3
+ggnet.custom1$arrow.gap = 0.003
+ggnet.custom1$alpha_diff = 0.2
+ggnet.custom1$edge.alpha_diff = 0.1
+
+p_metaweb_sp = ggmetanet(g = meta_verte$metaweb,beta = beta,metanetwork = meta_verte,
+          ggnet.config = ggnet.custom1,legend = "SBMgroup",
           alpha_per_group = list(groups = diets,
                                  alpha_focal = 0.3,
                                  alpha_hidden = 0.9),
           flip_coords = T)
 
-setwd(mainDir)
-png('metaweb_marc_1.png',height=600,width=700)
-print(p)
-dev.off()
+ggsave(plot = p_metaweb_sp,filename = 'metaweb_sp.tiff',height=2000,width=2500,units = "px")
 
 # at a SBM group level
 ##################
-ggnet.custom = ggnet.default
-ggnet.custom$label = T
-ggnet.custom$edge.alpha = 0.5
-ggnet.custom$max_size = 6
+ggnet.custom2 = ggnet.default
+ggnet.custom2$label = T
+ggnet.custom2$edge.alpha = 0.5
+ggnet.custom2$max_size = 6
 
-ggnet.custom$label.size = 7
-ggnet.custom$max_size = 17
-ggnet.custom$edge.size = 1
-ggnet.custom$edge.alpha = 0.5
-ggnet.custom$legend.position = "right"
-ggnet.custom$arrow.gap = 0.025
+ggnet.custom2$label.size = 7
+ggnet.custom2$max_size = 17
+ggnet.custom2$edge.size = 1
+ggnet.custom2$edge.alpha = 0.5
+ggnet.custom2$legend.position = "right"
+ggnet.custom2$arrow.gap = 0.025
 
 beta = 0.002
 # meta_verte = attach_layout(g = meta_verte$metaweb_SBMgroup,
@@ -125,12 +125,12 @@ beta = 0.002
 ### FIGURE 2
 pGr = ggmetanet(g = meta_verte$metaweb_SBMgroup,
                 beta = beta,metanetwork = meta_verte,
-          ggnet.config = ggnet.custom,
+          ggnet.config = ggnet.custom2,
           flip_coords = T,
           edge_thrs = 0.8,
           nrep_ly = 1)
 
-png('metaweb_marc_group.png',height=800,width=1200)
+png('metaweb_SBMgroup.png',height=800,width=1200)
 print(pGr)
 dev.off()
 
@@ -206,6 +206,28 @@ p_pie_graph = ggraph(g, "manual", x = V(g)$layout_beta0.002, y = K*V(g)$TL) +
 
 p_pie_graph
 
+# FIGURE group layout
+## attaching alternative layout 'group-TL-tsne' using SBM level layout
+group_layout.custom = group_layout.default
+group_layout.custom$nbreaks_group = 3
+group_layout.custom$group_height = c(1,3,5)
+group_layout.custom$group_width = c(1,3,5)
+meta_verte = attach_layout(meta_verte,beta = beta,mode = "group-TL-tsne",
+                           res = "SBMgroup",group_layout.config = group_layout.custom)
+
+p_group_metaweb_sp = ggmetanet(g = meta_verte$metaweb,beta = beta,metanetwork = meta_verte,
+                         mode = "group-TL-tsne",legend = "SBMgroup",
+                         ggnet.config = ggnet.custom1,
+                         alpha_per_group = list(groups = diets,
+                                                alpha_focal = 0.3,
+                                                alpha_hidden = 0.9),
+                         flip_coords = T)
+
+ggsave(plot = p_group_metaweb_sp,filename = 'group_metaweb_sp.tiff',
+       height=2000,width=2500,units = "px")  
+  
+  
+  
 ### TABLE S2.3
 groupis = data.frame(TL=vertex_attr(meta_verte$metaweb_SBMgroup)$TL,
            ab=vertex_attr(meta_verte$metaweb_SBMgroup)$ab,
