@@ -2,9 +2,9 @@ rm(list=ls())
 #This script aims at visualising and comparing networks for Botella paper
 #using metanetwork package
 
-# setwd("~/Bureau/article_chris_b/")
-mainDir ="~/Desktop/collab_LECA/article_chris_b/github/" 
-setwd(mainDir)
+setwd("~/Bureau/article_chris_b/github/")
+# mainDir ="~/Desktop/collab_LECA/article_chris_b/github/" 
+# setwd(mainDir)
 
 ### metanetwork Installation
 # library(devtools)
@@ -27,7 +27,7 @@ library(scatterpie)
 library(viridisLite)
 
 # loading data
-load("data/preprocessed_data")
+load("data/preprocessed_data.Rdata")
 
 #building the igraph metaweb
 metaweb = graph_from_adjacency_matrix(t(metaweb_Adj), mode = "directed")
@@ -128,7 +128,8 @@ pGr = ggmetanet(g = meta_verte$metaweb_SBMgroup,
           ggnet.config = ggnet.custom2,
           flip_coords = T,
           edge_thrs = 0.8,
-          nrep_ly = 1)
+          nrep_ly = 1,
+          legend = "SBMgroup")
 
 png('metaweb_SBMgroup.png',height=800,width=1200)
 print(pGr)
@@ -208,14 +209,23 @@ p_pie_graph
 
 # FIGURE group layout
 ## attaching alternative layout 'group-TL-tsne' using SBM level layout
+# CAREFUL: you need to attach 'TL-tsne' layout at SBMgroup level before computing group-TL-tsne layout (precomputed here)
 group_layout.custom = group_layout.default
-group_layout.custom$nbreaks_group = 3
-group_layout.custom$group_height = c(1,3,5)
-group_layout.custom$group_width = c(1,3,5)
-meta_verte = attach_layout(meta_verte,beta = beta,mode = "group-TL-tsne",
+group_layout.custom$nbreaks_group = 4
+group_layout.custom$group_height = c(1,2,3,4)
+group_layout.custom$group_width = c(1,2,3,4)
+meta_verte = attach_layout(meta_verte,beta = 0.002,mode = "group-TL-tsne",
                            res = "SBMgroup",group_layout.config = group_layout.custom)
 
-p_group_metaweb_sp = ggmetanet(g = meta_verte$metaweb,beta = beta,metanetwork = meta_verte,
+ggnet.custom1 = metanetwork::ggnet.default
+ggnet.custom1$label = F
+ggnet.custom1$edge.alpha = 0.01
+ggnet.custom1$max_size = 3
+ggnet.custom1$arrow.gap = 0.003
+ggnet.custom1$alpha_diff = 0.2
+ggnet.custom1$edge.alpha_diff = 0.1
+
+p_group_metaweb_sp = ggmetanet(g = meta_verte$metaweb,beta = 0.002,metanetwork = meta_verte,
                          mode = "group-TL-tsne",legend = "SBMgroup",
                          ggnet.config = ggnet.custom1,
                          alpha_per_group = list(groups = diets,
